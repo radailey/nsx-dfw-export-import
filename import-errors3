@@ -1,0 +1,18 @@
+(.venv) PS C:\Users\Aaron.Dailey.c\python> python nsx_dfw_import.py --dest-host vcf-wld2-nsx.corporate.rjet.com --username admin --password 'VMwar3!!VMwar3!!' --input vcf-wld1-nsx_export.json --requests-per-second 10 --rate-limit-retries 12
+Services: created=0, updated=0, skipped_exists=166, skipped_system_owned=411, duplicate_matches=0, errors=0
+Context Profiles: created=0, updated=0, skipped_exists=1, skipped_system_owned=64, duplicate_matches=0, errors=0
+ERROR [group:VLAN-BACKED-DMZ-NETS] failed to create: Unexpected status 400 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/groups/VLAN-BACKED-DMZ-NETS. Response: {
+  "httpStatus" : "BAD_REQUEST",
+  "error_code" : 500012,
+  "module_name" : "Policy",
+  "error_message" : "The path=[/infra/segments/vlan51] is invalid"
+}
+Groups: created=0, updated=0, skipped_exists=249, skipped_system_owned=3, duplicate_matches=0, errors=1
+ERROR [policy:Network_Management rule:Outbound_SNMP] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/Network_Management/rules/Outbound_SNMP. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/Network_Management/rules/Outbound_SNMP], does not exist path=[/infra/services/SNMP-Recieve]."
+}
+Policies + Rules: created=20, updated=0, skipped_exists=602, skipped_system_owned=0, duplicate_matches=0, errors=1
+TOTAL: created=20, updated=0, skipped_exists=1018, skipped_system_owned=478, duplicate_matches=0, errors=2
