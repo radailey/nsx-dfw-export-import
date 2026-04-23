@@ -45,6 +45,18 @@ def parse_args() -> argparse.Namespace:
         default=1000,
         help="Page size for paginated API calls (default: 1000)",
     )
+    parser.add_argument(
+        "--requests-per-second",
+        type=float,
+        default=25.0,
+        help="Throttle API calls to this rate to avoid NSX rate limiting (default: 25)",
+    )
+    parser.add_argument(
+        "--rate-limit-retries",
+        type=int,
+        default=8,
+        help="Retry count for HTTP 429 responses (default: 8)",
+    )
     return parser.parse_args()
 
 
@@ -90,6 +102,8 @@ def main() -> int:
         username=args.username,
         password=args.password,
         verify_ssl=args.verify_ssl,
+        requests_per_second=args.requests_per_second,
+        rate_limit_retries=args.rate_limit_retries,
     )
 
     try:

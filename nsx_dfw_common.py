@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import copy
 import json
+import time
 import warnings
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -63,9 +64,17 @@ class NSXClient:
         password: str,
         verify_ssl: bool = False,
         timeout: int = 60,
+        requests_per_second: float = 25.0,
+        rate_limit_retries: int = 8,
+        rate_limit_backoff_seconds: float = 1.0,
     ) -> None:
         self.base_url = f"https://{host.strip().rstrip('/')}"
         self.timeout = timeout
+        self.requests_per_second = requests_per_second
+        self.rate_limit_retries = rate_limit_retries
+        self.rate_limit_backoff_seconds = rate_limit_backoff_seconds
+        self.min_request_interval = 0.0 if requests_per_second <= 0 else 1.0 / requests_per_second
+        self.last_request_timestamp = 0.0
 
         self.session = requests.Session()
         self.session.auth = (username, password)
@@ -101,12 +110,11 @@ class NSXClient:
     ) -> Any:
         url = self._to_url(path)
         try:
-            response = self.session.request(
+            response = self._request_with_retries(
                 method=method.upper(),
                 url=url,
                 params=params,
                 json=payload,
-                timeout=self.timeout,
             )
         except requests.RequestException as exc:
             raise NSXApiError(f"Request failed: {method} {url} :: {exc}") from exc
@@ -180,10 +188,9 @@ class NSXClient:
     def _get_with_404(self, path: str) -> Optional[Dict[str, Any]]:
         url = self._to_url(path)
         try:
-            response = self.session.request(
+            response = self._request_with_retries(
                 method="GET",
                 url=url,
-                timeout=self.timeout,
             )
         except requests.RequestException as exc:
             raise NSXApiError(f"Request failed: GET {url} :: {exc}") from exc
@@ -210,6 +217,53 @@ class NSXClient:
         if isinstance(data, dict):
             return data
         raise NSXApiError(f"Expected JSON object for GET {url}, got {type(data)}")
+
+    def _request_with_retries(self, method: str, url: str, **kwargs: Any) -> requests.Response:
+        last_response: Optional[requests.Response] = None
+
+        for attempt in range(self.rate_limit_retries + 1):
+            self._respect_rate_limit()
+            response = self.session.request(method=method, url=url, timeout=self.timeout, **kwargs)
+            self.last_request_timestamp = time.monotonic()
+
+            if response.status_code != 429:
+                return response
+
+            last_response = response
+            if attempt >= self.rate_limit_retries:
+                break
+
+            retry_after = response.headers.get("Retry-After")
+            wait_seconds = self._retry_wait_seconds(attempt, retry_after)
+            time.sleep(wait_seconds)
+
+        body = ""
+        if last_response is not None:
+            body = last_response.text.strip()
+            if len(body) > 1000:
+                body = f"{body[:1000]}..."
+        raise NSXApiError(
+            f"Exceeded rate-limit retries for {method} {url}. "
+            f"Last response: {body or '<empty>'}"
+        )
+
+    def _respect_rate_limit(self) -> None:
+        if self.min_request_interval <= 0:
+            return
+
+        now = time.monotonic()
+        elapsed = now - self.last_request_timestamp
+        remaining = self.min_request_interval - elapsed
+        if remaining > 0:
+            time.sleep(remaining)
+
+    def _retry_wait_seconds(self, attempt: int, retry_after: Optional[str]) -> float:
+        if retry_after:
+            try:
+                return max(float(retry_after), self.min_request_interval, 0.5)
+            except ValueError:
+                pass
+        return max(self.rate_limit_backoff_seconds * (2 ** attempt), self.min_request_interval, 0.5)
 
 
 def sanitize_for_import(obj: Any) -> Any:
