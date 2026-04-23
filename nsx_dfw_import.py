@@ -271,10 +271,8 @@ def import_policies_and_rules(
             action = "update"
         else:
             counters.skipped_exists += 1
-            # In default idempotent mode, skip the full existing policy subtree.
-            # This avoids duplicate imports and prevents walking child rules under
-            # destination-specific policy paths that may not expose `/rules`.
-            continue
+            # In default idempotent mode, do not modify the existing policy
+            # object itself, but continue to reconcile any missing child rules.
 
         if action:
             if dry_run:
