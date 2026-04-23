@@ -15,7 +15,7 @@ import copy
 import json
 import os
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from nsx_dfw_common import (
     ImportCounters,
@@ -83,6 +83,63 @@ def endpoint_for_object(kind: str, object_id: str, domain: str) -> str:
     raise ValueError(f"Unsupported kind: {kind}")
 
 
+def import_single_object(
+    client: NSXClient,
+    *,
+    kind: str,
+    obj: Dict[str, Any],
+    domain: str,
+    update_existing: bool,
+    dry_run: bool,
+) -> Tuple[str, Optional[str]]:
+    object_id = obj.get("id")
+    if not object_id:
+        return ("error", f"ERROR [{kind}]: object missing 'id'; skipping")
+
+    if is_system_owned(obj):
+        return ("skipped_system_owned", None)
+
+    path = endpoint_for_object(kind, object_id, domain)
+    payload = sanitize_for_import(obj)
+
+    try:
+        existing = client.get_object(path)
+    except NSXApiError as exc:
+        return ("error", f"ERROR [{kind}:{object_id}] existence check failed: {exc}")
+
+    if existing is not None and not update_existing:
+        return ("skipped_exists", None)
+
+    action = "update" if existing is not None else "create"
+    if dry_run:
+        if action == "create":
+            return ("created", None)
+        return ("updated", None)
+
+    try:
+        client.patch_object(path, payload)
+        if action == "create":
+            return ("created", None)
+        return ("updated", None)
+    except NSXApiError as exc:
+        return ("error", f"ERROR [{kind}:{object_id}] failed to {action}: {exc}")
+
+
+def bump_counter(counters: ImportCounters, status: str) -> None:
+    if status == "created":
+        counters.created += 1
+    elif status == "updated":
+        counters.updated += 1
+    elif status == "skipped_exists":
+        counters.skipped_exists += 1
+    elif status == "skipped_system_owned":
+        counters.skipped_system_owned += 1
+    elif status == "duplicate_matches":
+        counters.duplicate_matches += 1
+    elif status == "error":
+        counters.errors += 1
+
+
 def import_objects(
     client: NSXClient,
     *,
@@ -91,51 +148,62 @@ def import_objects(
     domain: str,
     update_existing: bool,
     dry_run: bool,
+    retry_passes: int = 1,
 ) -> ImportCounters:
     counters = ImportCounters()
+    pending = list(objects)
 
-    for obj in objects:
-        object_id = obj.get("id")
-        if not object_id:
-            counters.errors += 1
-            print(f"ERROR [{kind}]: object missing 'id'; skipping")
-            continue
+    for current_pass in range(1, retry_passes + 1):
+        if not pending:
+            break
 
-        if is_system_owned(obj):
-            counters.skipped_system_owned += 1
-            continue
+        next_pending: List[Dict[str, Any]] = []
+        progress_made = False
 
-        path = endpoint_for_object(kind, object_id, domain)
-        payload = sanitize_for_import(obj)
+        for obj in pending:
+            status, message = import_single_object(
+                client,
+                kind=kind,
+                obj=obj,
+                domain=domain,
+                update_existing=update_existing,
+                dry_run=dry_run,
+            )
 
-        try:
-            existing = client.get_object(path)
-        except NSXApiError as exc:
-            counters.errors += 1
-            print(f"ERROR [{kind}:{object_id}] existence check failed: {exc}")
-            continue
+            if status in {"created", "updated", "skipped_exists", "skipped_system_owned"}:
+                bump_counter(counters, status)
+                if status in {"created", "updated"}:
+                    progress_made = True
+                continue
 
-        if existing is not None and not update_existing:
-            counters.skipped_exists += 1
-            continue
-
-        action = "update" if existing is not None else "create"
-        if dry_run:
-            if action == "create":
-                counters.created += 1
+            if current_pass < retry_passes:
+                next_pending.append(obj)
             else:
-                counters.updated += 1
-            continue
+                bump_counter(counters, status)
+                if message:
+                    print(message)
 
-        try:
-            client.patch_object(path, payload)
-            if action == "create":
-                counters.created += 1
-            else:
-                counters.updated += 1
-        except NSXApiError as exc:
-            counters.errors += 1
-            print(f"ERROR [{kind}:{object_id}] failed to {action}: {exc}")
+        if not next_pending:
+            pending = []
+            break
+        if not progress_made:
+            pending = next_pending
+            break
+        pending = next_pending
+
+    if pending:
+        for obj in pending:
+            status, message = import_single_object(
+                client,
+                kind=kind,
+                obj=obj,
+                domain=domain,
+                update_existing=update_existing,
+                dry_run=dry_run,
+            )
+            bump_counter(counters, status)
+            if message:
+                print(message)
 
     return counters
 
@@ -356,6 +424,7 @@ def main() -> int:
             domain=domain,
             update_existing=args.update_existing,
             dry_run=args.dry_run,
+            retry_passes=5,
         )
         print_summary("Groups", group_counts)
 
