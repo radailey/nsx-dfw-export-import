@@ -1,0 +1,157 @@
+(.venv) PS C:\Users\Aaron.Dailey.c\python> python nsx_dfw_import.py --dest-host vcf-wld2-nsx.corporate.rjet.com --username admin --password 'VMwar3!!VMwar3!!' --input vcf-wld1-nsx_export.json          
+Services: created=166, updated=0, skipped_exists=0, skipped_system_owned=411, duplicate_matches=0, errors=0
+Context Profiles: created=1, updated=0, skipped_exists=0, skipped_system_owned=64, duplicate_matches=0, errors=0
+ERROR [group:RAMCO] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/groups/RAMCO. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 600,
+  "module_name" : "common-services",
+  "error_message" : "The requested object : /infra/domains/default/groups/RAMCO-Preprod-Web could not be found. Object identifiers are case sensitive."
+}
+ERROR [group:RAMCO-App] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/groups/RAMCO-App. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 600,
+  "module_name" : "common-services",
+  "error_message" : "The requested object : /infra/domains/default/groups/RAMCO-Preprod-App could not be found. Object identifiers are case sensitive."
+}
+ERROR [group:ALL-SABRE] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/groups/ALL-SABRE. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 600,
+  "module_name" : "common-services",
+  "error_message" : "The requested object : /infra/domains/default/groups/Sabre_YX_Servers could not be found. Object identifiers are case sensitive."
+}
+ERROR [group:VLAN-BACKED-DMZ-NETS] failed to create: Unexpected status 400 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/groups/VLAN-BACKED-DMZ-NETS. Response: {
+  "httpStatus" : "BAD_REQUEST",
+  "error_code" : 500012,
+  "module_name" : "Policy",
+  "error_message" : "The path=[/infra/segments/vlan51] is invalid"
+}
+Groups: created=245, updated=0, skipped_exists=1, skipped_system_owned=3, duplicate_matches=0, errors=4
+ERROR [policy:Sendmail rule:SMTP_to_Exchange] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/Sendmail/rules/SMTP_to_Exchange. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/Sendmail/rules/SMTP_to_Exchange], does not exist path=[/infra/domains/default/groups/ALL-SABRE]."
+}
+ERROR [policy:Network_Management rule:Outbound_SNMP] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/Network_Management/rules/Outbound_SNMP. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/Network_Management/rules/Outbound_SNMP], does not exist path=[/infra/services/SNMP-Recieve]."
+}
+ERROR [policy:Jump_Box_Rules rule:AOIT_-_ramco_sql] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/Jump_Box_Rules/rules/AOIT_-_ramco_sql. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/Jump_Box_Rules/rules/AOIT_-_ramco_sql], does not exist path=[/infra/domains/default/groups/RAMCO,/infra/domains/default/groups/RAMCO]."
+}
+ERROR [policy:Aerodata_Rules rule:Sabre-Aerodata] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/Aerodata_Rules/rules/Sabre-Aerodata. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/Aerodata_Rules/rules/Sabre-Aerodata], does not exist path=[/infra/domains/default/groups/ALL-SABRE,/infra/domains/default/groups/ALL-SABRE]."
+}
+ERROR [policy:Autobot rule:Outbound_Autobot] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/Autobot/rules/Outbound_Autobot. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/Autobot/rules/Outbound_Autobot], does not exist path=[/infra/domains/default/groups/ALL-SABRE]."
+}
+ERROR [policy:Insight_Database_Team rule:Bi-Insight] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/Insight_Database_Team/rules/Bi-Insight. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/Insight_Database_Team/rules/Bi-Insight], does not exist path=[/infra/domains/default/groups/RAMCO,/infra/domains/default/groups/RAMCO]."
+}
+ERROR [policy:Citrix_Rules rule:Citrix_to_RAMCO_RPC_(reporting)] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/Citrix_Rules/rules/Citrix_to_RAMCO_RPC_(reporting). Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/Citrix_Rules/rules/Citrix_to_RAMCO_RPC_(reporting)], does not exist path=[/infra/domains/default/groups/RAMCO,/infra/domains/default/groups/RAMCO]."
+}
+ERROR [policy:Citrix_Rules rule:Ramco_to_CTXVA] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/Citrix_Rules/rules/Ramco_to_CTXVA. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/Citrix_Rules/rules/Ramco_to_CTXVA], does not exist path=[/infra/domains/default/groups/RAMCO,/infra/domains/default/groups/RAMCO]."
+}
+ERROR [policy:SABRE rule:Temporary_AO-IT_remote_access_allow] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/SABRE/rules/Temporary_AO-IT_remote_access_allow. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/SABRE/rules/Temporary_AO-IT_remote_access_allow], does not exist path=[/infra/domains/default/groups/ALL-SABRE,/infra/domains/default/groups/ALL-SABRE]."
+}
+ERROR [policy:SABRE rule:SABRE-to-SABRE] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/SABRE/rules/SABRE-to-SABRE. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/SABRE/rules/SABRE-to-SABRE], does not exist path=[/infra/domains/default/groups/ALL-SABRE,/infra/domains/default/groups/ALL-SABRE,/infra/domains/default/groups/ALL-SABRE]."
+}
+ERROR [policy:RAMCO_Rules-hu8JqtWLI rule:RamcoAPP_to_DavisWinTen] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/RamcoAPP_to_DavisWinTen. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/RamcoAPP_to_DavisWinTen], does not exist path=[/infra/domains/default/groups/RAMCO-App,/infra/domains/default/groups/RAMCO-App]."
+}
+ERROR [policy:RAMCO_Rules-hu8JqtWLI rule:DavisWinTen_to_RAMCO-APP] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/DavisWinTen_to_RAMCO-APP. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/DavisWinTen_to_RAMCO-APP], does not exist path=[/infra/domains/default/groups/RAMCO-App,/infra/domains/default/groups/RAMCO-App]."
+}
+ERROR [policy:RAMCO_Rules-hu8JqtWLI rule:RAMCO-APP-User] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/RAMCO-APP-User. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/RAMCO-APP-User], does not exist path=[/infra/domains/default/groups/RAMCO-App,/infra/domains/default/groups/RAMCO-App]."
+}
+ERROR [policy:RAMCO_Rules-hu8JqtWLI rule:Globalscape-RAMCO] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/Globalscape-RAMCO. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/Globalscape-RAMCO], does not exist path=[/infra/domains/default/groups/RAMCO-App,/infra/domains/default/groups/RAMCO-App]."
+}
+ERROR [policy:RAMCO_Rules-hu8JqtWLI rule:RAMCO-PPR-Outbound] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/RAMCO-PPR-Outbound. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/RAMCO-PPR-Outbound], does not exist path=[/infra/domains/default/groups/RAMCO-App,/infra/domains/default/groups/RAMCO-App]."
+}
+ERROR [policy:RAMCO_Rules-hu8JqtWLI rule:Allow-to-RAMCO-Web] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/Allow-to-RAMCO-Web. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/Allow-to-RAMCO-Web], does not exist path=[/infra/domains/default/groups/RAMCO-App,/infra/domains/default/groups/RAMCO-App]."
+}
+ERROR [policy:RAMCO_Rules-hu8JqtWLI rule:Web-to-App] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/Web-to-App. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/Web-to-App], does not exist path=[/infra/domains/default/groups/RAMCO-App,/infra/domains/default/groups/RAMCO-App]."
+}
+ERROR [policy:RAMCO_Rules-hu8JqtWLI rule:App-to-DB] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/App-to-DB. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/App-to-DB], does not exist path=[/infra/domains/default/groups/RAMCO-App,/infra/domains/default/groups/RAMCO-App]."
+}
+ERROR [policy:RAMCO_Rules-hu8JqtWLI rule:Allow-FTP] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/Allow-FTP. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/Allow-FTP], does not exist path=[/infra/domains/default/groups/RAMCO-App]."
+}
+ERROR [policy:RAMCO_Rules-hu8JqtWLI rule:SMB-to-RAMCO] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/SMB-to-RAMCO. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/SMB-to-RAMCO], does not exist path=[/infra/domains/default/groups/RAMCO,/infra/domains/default/groups/RAMCO]."
+}
+ERROR [policy:RAMCO_Rules-hu8JqtWLI rule:RAMCO-to-RAMCO] failed to create: Unexpected status 404 for PATCH https://vcf-wld2-nsx.corporate.rjet.com/policy/api/v1/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/RAMCO-to-RAMCO. Response: {
+  "httpStatus" : "NOT_FOUND",
+  "error_code" : 500232,
+  "module_name" : "Policy",
+  "error_message" : "Following dependent objects, used in path=[/infra/domains/default/security-policies/RAMCO_Rules-hu8JqtWLI/rules/RAMCO-to-RAMCO], does not exist path=[/infra/domains/default/groups/RAMCO,/infra/domains/default/groups/RAMCO,/infra/domains/default/groups/RAMCO]."
+}
+Policies + Rules: created=598, updated=0, skipped_exists=2, skipped_system_owned=0, duplicate_matches=0, errors=21
+TOTAL: created=1010, updated=0, skipped_exists=3, skipped_system_owned=478, duplicate_matches=0, errors=25
+(.venv) PS C:\Users\Aaron.Dailey.c\python> 
