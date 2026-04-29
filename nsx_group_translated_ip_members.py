@@ -53,6 +53,22 @@ def parse_args() -> argparse.Namespace:
         help="Apply changes. Without this flag, the script only reports planned changes.",
     )
     parser.add_argument(
+        "--source-report",
+        default=None,
+        help=(
+            "Replay a JSON report from a source NSX onto this NSX Manager instead of "
+            "resolving effective IPs locally."
+        ),
+    )
+    parser.add_argument(
+        "--remove-managed",
+        action="store_true",
+        help=(
+            "Remove the managed IPAddressExpressions created by this script. If "
+            "--source-report is provided, only groups in that report are considered."
+        ),
+    )
+    parser.add_argument(
         "--include-ipv6",
         action="store_true",
         help="Also materialize translated IPv6 addresses. Default is IPv4 only.",
@@ -269,36 +285,40 @@ def delete_ip_expression(
     )
 
 
-def process_group(
-    client: NSXClient,
+def load_report(path: str) -> Dict[str, Any]:
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        raise ValueError("Report must contain a JSON object")
+    if not isinstance(data.get("groups"), list):
+        raise ValueError("Report must contain a 'groups' list")
+    return data
+
+
+def report_group_ip_members(group: Dict[str, Any], include_ipv6: bool) -> List[str]:
+    ipv4 = group.get("desired_ipv4", group.get("missing_ipv4", []))
+    ipv6 = group.get("desired_ipv6", group.get("missing_ipv6", []))
+    values: List[str] = []
+    if isinstance(ipv4, list):
+        values.extend(str(item).strip() for item in ipv4 if str(item).strip())
+    if include_ipv6 and isinstance(ipv6, list):
+        values.extend(str(item).strip() for item in ipv6 if str(item).strip())
+    return values
+
+
+def reconcile_managed_ip_expressions(
+    client: "NSXClient",
     *,
-    group: Dict[str, Any],
+    full_group: Dict[str, Any],
     domain: str,
+    group_id: str,
+    display_name: Optional[str],
+    desired_ip_members: Iterable[str],
     expression_id_prefix: str,
     apply: bool,
     include_ipv6: bool,
-    page_size: int,
-    enforcement_point_path: Optional[str],
+    extra_result: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    group_id = group.get("id")
-    display_name = group.get("display_name") or group_id
-    if not group_id:
-        return {"status": "error", "error": "Group missing id", "display_name": display_name}
-
-    full_group = fetch_group(client, domain, group_id)
-    if is_system_owned(full_group):
-        return {"id": group_id, "display_name": display_name, "status": "skipped_system_owned"}
-
-    if not group_has_non_ip_membership(full_group):
-        return {"id": group_id, "display_name": display_name, "status": "skipped_ip_only"}
-
-    effective_ips = fetch_effective_ips(
-        client,
-        domain=domain,
-        group_id=group_id,
-        page_size=page_size,
-        enforcement_point_path=enforcement_point_path,
-    )
     ipv4_expression_id = safe_expression_id(expression_id_prefix, "ipv4")
     ipv6_expression_id = safe_expression_id(expression_id_prefix, "ipv6")
     managed_expression_ids = {ipv4_expression_id, ipv6_expression_id}
@@ -306,7 +326,7 @@ def process_group(
         full_group,
         exclude_expression_ids=managed_expression_ids,
     )
-    desired_ips = sorted(set(effective_ips) - unmanaged_direct_ips)
+    desired_ips = sorted(set(desired_ip_members) - unmanaged_direct_ips)
     current_ipv4_managed_ips = expression_ip_members(full_group, ipv4_expression_id)
     current_ipv6_managed_ips = expression_ip_members(full_group, ipv6_expression_id)
     current_managed_ips = current_ipv4_managed_ips | current_ipv6_managed_ips
@@ -317,9 +337,8 @@ def process_group(
 
     result: Dict[str, Any] = {
         "id": group_id,
-        "display_name": display_name,
+        "display_name": display_name or group_id,
         "status": "planned" if add_count or remove_count else "no_change",
-        "effective_ip_count": len(effective_ips),
         "unmanaged_direct_ip_count": len(unmanaged_direct_ips),
         "current_managed_ip_count": len(current_managed_ips),
         "desired_managed_ip_count": len(desired_managed_ips),
@@ -332,6 +351,8 @@ def process_group(
         "desired_ipv6": ipv6,
         "unknown_ip_elements": unknown,
     }
+    if extra_result:
+        result.update(extra_result)
 
     if not add_count and not remove_count:
         return result
@@ -415,9 +436,161 @@ def process_group(
     return result
 
 
+def process_group(
+    client: NSXClient,
+    *,
+    group: Dict[str, Any],
+    domain: str,
+    expression_id_prefix: str,
+    apply: bool,
+    include_ipv6: bool,
+    page_size: int,
+    enforcement_point_path: Optional[str],
+) -> Dict[str, Any]:
+    group_id = group.get("id")
+    display_name = group.get("display_name") or group_id
+    if not group_id:
+        return {"status": "error", "error": "Group missing id", "display_name": display_name}
+
+    full_group = fetch_group(client, domain, group_id)
+    if is_system_owned(full_group):
+        return {"id": group_id, "display_name": display_name, "status": "skipped_system_owned"}
+
+    if not group_has_non_ip_membership(full_group):
+        return {"id": group_id, "display_name": display_name, "status": "skipped_ip_only"}
+
+    effective_ips = fetch_effective_ips(
+        client,
+        domain=domain,
+        group_id=group_id,
+        page_size=page_size,
+        enforcement_point_path=enforcement_point_path,
+    )
+    return reconcile_managed_ip_expressions(
+        client,
+        full_group=full_group,
+        domain=domain,
+        group_id=group_id,
+        display_name=display_name,
+        desired_ip_members=effective_ips,
+        expression_id_prefix=expression_id_prefix,
+        apply=apply,
+        include_ipv6=include_ipv6,
+        extra_result={"effective_ip_count": len(effective_ips)},
+    )
+
+
+def process_report_group(
+    client: "NSXClient",
+    *,
+    report_group: Dict[str, Any],
+    domain: str,
+    expression_id_prefix: str,
+    apply: bool,
+    include_ipv6: bool,
+) -> Dict[str, Any]:
+    group_id = report_group.get("id")
+    display_name = report_group.get("display_name") or group_id
+    if not group_id:
+        return {"status": "error", "error": "Report group missing id", "display_name": display_name}
+
+    full_group = client.get_object(f"{group_base_path(domain)}/{group_id}")
+    if full_group is None:
+        return {"id": group_id, "display_name": display_name, "status": "error", "error": "Group not found"}
+    if is_system_owned(full_group):
+        return {"id": group_id, "display_name": display_name, "status": "skipped_system_owned"}
+
+    desired_ips = report_group_ip_members(report_group, include_ipv6=include_ipv6)
+    return reconcile_managed_ip_expressions(
+        client,
+        full_group=full_group,
+        domain=domain,
+        group_id=group_id,
+        display_name=display_name,
+        desired_ip_members=desired_ips,
+        expression_id_prefix=expression_id_prefix,
+        apply=apply,
+        include_ipv6=include_ipv6,
+        extra_result={"source_report_ip_count": len(desired_ips)},
+    )
+
+
+def remove_managed_from_group(
+    client: "NSXClient",
+    *,
+    group: Dict[str, Any],
+    domain: str,
+    expression_id_prefix: str,
+    apply: bool,
+) -> Dict[str, Any]:
+    group_id = group.get("id")
+    display_name = group.get("display_name") or group_id
+    if not group_id:
+        return {"status": "error", "error": "Group missing id", "display_name": display_name}
+
+    full_group = client.get_object(f"{group_base_path(domain)}/{group_id}")
+    if full_group is None:
+        return {"id": group_id, "display_name": display_name, "status": "error", "error": "Group not found"}
+    if is_system_owned(full_group):
+        return {"id": group_id, "display_name": display_name, "status": "skipped_system_owned"}
+
+    ipv4_expression_id = safe_expression_id(expression_id_prefix, "ipv4")
+    ipv6_expression_id = safe_expression_id(expression_id_prefix, "ipv6")
+    current_ipv4 = expression_ip_members(full_group, ipv4_expression_id)
+    current_ipv6 = expression_ip_members(full_group, ipv6_expression_id)
+    remove_count = len(current_ipv4 | current_ipv6)
+    result: Dict[str, Any] = {
+        "id": group_id,
+        "display_name": display_name,
+        "status": "planned" if remove_count else "no_change",
+        "managed_remove_count": remove_count,
+        "current_managed_ip_count": remove_count,
+    }
+
+    if not remove_count or not apply:
+        return result
+
+    try:
+        if current_ipv4:
+            delete_ip_expression(
+                client,
+                domain=domain,
+                group_id=group_id,
+                expression_id=ipv4_expression_id,
+            )
+        if current_ipv6:
+            delete_ip_expression(
+                client,
+                domain=domain,
+                group_id=group_id,
+                expression_id=ipv6_expression_id,
+            )
+        result["status"] = "updated"
+    except NSXApiError as exc:
+        result["status"] = "error"
+        result["error"] = str(exc)
+    return result
+
+
 def write_report(path: str, payload: Dict[str, Any]) -> None:
     with open(path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, sort_keys=True)
+
+
+def summarize_results(results: List[Dict[str, Any]]) -> Dict[str, Any]:
+    return {
+        "groups_total": len(results),
+        "groups_updated": sum(1 for item in results if item.get("status") == "updated"),
+        "groups_planned": sum(1 for item in results if item.get("status") == "planned"),
+        "groups_no_change": sum(1 for item in results if item.get("status") == "no_change"),
+        "groups_skipped_ip_only": sum(1 for item in results if item.get("status") == "skipped_ip_only"),
+        "groups_skipped_system_owned": sum(1 for item in results if item.get("status") == "skipped_system_owned"),
+        "groups_errors": sum(1 for item in results if item.get("status") == "error"),
+        "desired_ipv4_total": sum(int(item.get("desired_ipv4_count", 0)) for item in results),
+        "desired_ipv6_total": sum(int(item.get("desired_ipv6_count", 0)) for item in results),
+        "managed_add_total": sum(int(item.get("managed_add_count", 0)) for item in results),
+        "managed_remove_total": sum(int(item.get("managed_remove_count", 0)) for item in results),
+    }
 
 
 def main() -> int:
@@ -448,57 +621,98 @@ def main() -> int:
     )
 
     try:
-        groups = client.get_paginated(group_base_path(args.domain), page_size=args.page_size)
         results: List[Dict[str, Any]] = []
-        for index, group in enumerate(groups, start=1):
-            group_id = group.get("id", "<missing-id>")
-            print(f"[{index}/{len(groups)}] Inspecting group {group_id}")
-            try:
-                results.append(
-                    process_group(
-                        client,
-                        group=group,
-                        domain=args.domain,
-                        expression_id_prefix=args.expression_id_prefix,
-                        apply=args.apply,
-                        include_ipv6=args.include_ipv6,
-                        page_size=args.page_size,
-                        enforcement_point_path=args.enforcement_point_path,
-                    )
-                )
-            except NSXApiError as exc:
-                results.append({"id": group_id, "status": "error", "error": str(exc)})
+        source_report: Optional[Dict[str, Any]] = None
+        report_groups: Optional[List[Dict[str, Any]]] = None
+        if args.source_report:
+            source_report = load_report(args.source_report)
+            report_groups = [
+                group for group in source_report.get("groups", []) if isinstance(group, dict)
+            ]
 
+        if args.remove_managed:
+            if report_groups is not None:
+                groups = report_groups
+                mode = "remove-managed-from-report"
+            else:
+                groups = client.get_paginated(group_base_path(args.domain), page_size=args.page_size)
+                mode = "remove-managed"
+
+            for index, group in enumerate(groups, start=1):
+                group_id = group.get("id", "<missing-id>")
+                print(f"[{index}/{len(groups)}] Checking managed expressions on group {group_id}")
+                try:
+                    results.append(
+                        remove_managed_from_group(
+                            client,
+                            group=group,
+                            domain=args.domain,
+                            expression_id_prefix=args.expression_id_prefix,
+                            apply=args.apply,
+                        )
+                    )
+                except NSXApiError as exc:
+                    results.append({"id": group_id, "status": "error", "error": str(exc)})
+        elif report_groups is not None:
+            groups = report_groups
+            mode = "replay-source-report"
+            for index, group in enumerate(groups, start=1):
+                group_id = group.get("id", "<missing-id>")
+                print(f"[{index}/{len(groups)}] Replaying report group {group_id}")
+                try:
+                    results.append(
+                        process_report_group(
+                            client,
+                            report_group=group,
+                            domain=args.domain,
+                            expression_id_prefix=args.expression_id_prefix,
+                            apply=args.apply,
+                            include_ipv6=args.include_ipv6,
+                        )
+                    )
+                except NSXApiError as exc:
+                    results.append({"id": group_id, "status": "error", "error": str(exc)})
+        else:
+            groups = client.get_paginated(group_base_path(args.domain), page_size=args.page_size)
+            mode = "apply" if args.apply else "dry-run"
+            for index, group in enumerate(groups, start=1):
+                group_id = group.get("id", "<missing-id>")
+                print(f"[{index}/{len(groups)}] Inspecting group {group_id}")
+                try:
+                    results.append(
+                        process_group(
+                            client,
+                            group=group,
+                            domain=args.domain,
+                            expression_id_prefix=args.expression_id_prefix,
+                            apply=args.apply,
+                            include_ipv6=args.include_ipv6,
+                            page_size=args.page_size,
+                            enforcement_point_path=args.enforcement_point_path,
+                        )
+                    )
+                except NSXApiError as exc:
+                    results.append({"id": group_id, "status": "error", "error": str(exc)})
+
+        summary = summarize_results(results)
         report = {
             "metadata": {
                 "generated_at_utc": now_utc_iso(),
                 "host": args.host,
                 "domain": args.domain,
-                "mode": "apply" if args.apply else "dry-run",
+                "mode": mode,
+                "apply": args.apply,
                 "expression_id_prefix": args.expression_id_prefix,
                 "include_ipv6": args.include_ipv6,
                 "enforcement_point_path": args.enforcement_point_path,
+                "source_report": args.source_report,
             },
-            "summary": {
-                "groups_total": len(groups),
-                "groups_updated": sum(1 for item in results if item.get("status") == "updated"),
-                "groups_planned": sum(1 for item in results if item.get("status") == "planned"),
-                "groups_no_change": sum(1 for item in results if item.get("status") == "no_change"),
-                "groups_skipped_ip_only": sum(1 for item in results if item.get("status") == "skipped_ip_only"),
-                "groups_skipped_system_owned": sum(
-                    1 for item in results if item.get("status") == "skipped_system_owned"
-                ),
-                "groups_errors": sum(1 for item in results if item.get("status") == "error"),
-                "desired_ipv4_total": sum(int(item.get("desired_ipv4_count", 0)) for item in results),
-                "desired_ipv6_total": sum(int(item.get("desired_ipv6_count", 0)) for item in results),
-                "managed_add_total": sum(int(item.get("managed_add_count", 0)) for item in results),
-                "managed_remove_total": sum(int(item.get("managed_remove_count", 0)) for item in results),
-            },
+            "source_report_metadata": source_report.get("metadata") if source_report else None,
+            "summary": summary,
             "groups": results,
         }
         write_report(args.report, report)
 
-        summary = report["summary"]
         print(
             "Complete: "
             f"mode={report['metadata']['mode']}, total={summary['groups_total']}, "
@@ -507,7 +721,7 @@ def main() -> int:
         )
         return 1 if summary["groups_errors"] else 0
 
-    except NSXApiError as exc:
+    except (NSXApiError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
