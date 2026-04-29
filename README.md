@@ -5,6 +5,7 @@ These scripts support one-time or repeatable migration of NSX-T DFW policy objec
 ## Files
 - `nsx_dfw_export.py`: exports services, groups, context profiles, security policies, and policy rules.
 - `nsx_dfw_import.py`: imports exported objects into the destination NSX Manager with idempotent behavior.
+- `nsx_group_translated_ip_members.py`: finds groups with non-IP membership, resolves their effective IP members, and adds those IPs back to the same group as managed hardcoded IP entries.
 - `nsx_dfw_common.py`: shared NSX API client, retry logic, throttling, and object sanitization.
 
 ## Requirements
@@ -110,6 +111,38 @@ Import also supports:
 - `--dry-run`
 - `--update-existing`
 - `--domain`
+
+## Materialize Translated Group IP Members
+`nsx_group_translated_ip_members.py` is intended for NSX 3.2.x and 4.2.x Policy Groups. It looks for groups with membership that is not already a direct IP address expression, such as VM, VIF, segment, segment port, tag/condition, path, or nested criteria. For each qualifying group, it calls the Policy effective IP member API and creates or replaces managed hardcoded IP address expressions on that same group.
+
+The script is dry-run by default:
+
+```bash
+python3 nsx_group_translated_ip_members.py \
+  --host nsx-manager.example.local \
+  --username admin \
+  --password 'YOUR_PASSWORD' \
+  --domain default \
+  --report translated_ip_plan.json
+```
+
+Apply the planned changes:
+
+```bash
+python3 nsx_group_translated_ip_members.py \
+  --host nsx-manager.example.local \
+  --username admin \
+  --password 'YOUR_PASSWORD' \
+  --domain default \
+  --apply \
+  --report translated_ip_apply.json
+```
+
+Notes:
+- IPv4 translated members are materialized by default. Add `--include-ipv6` if you also want IPv6.
+- Managed expression IDs default to `translated-ip-members-ipv4` and `translated-ip-members-ipv6`.
+- The script does not remove the existing VM/tag/path membership. It adds hardcoded IP entries alongside it.
+- If your environment requires a specific enforcement point for effective member lookup, pass `--enforcement-point-path /infra/sites/default/enforcement-points/<ep-id>`.
 
 ## Rate Limiting
 Some NSX Manager environments enforce API rate limits such as `100 requests per second`. The shared client now:
