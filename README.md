@@ -167,12 +167,6 @@ That ordering handles most dependencies, but some imports can still fail if the 
 - a group that references a segment path that is not valid in the destination
 - a rule that references a missing service or group
 
-Typical examples from real runs:
-- missing referenced groups such as `RAMCO-Preprod-Web`
-- missing services such as `SNMP-Recieve`
-- invalid destination-specific paths such as `/infra/segments/vlan51`
-
-When that happens, the importer will continue and report the remaining failures at the end.
 
 ## Notes and Caveats
 - TLS certificate verification is disabled by default. Use `--verify-ssl` if the NSX certificate chain is trusted.
