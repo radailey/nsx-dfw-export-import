@@ -138,10 +138,51 @@ python3 nsx_group_translated_ip_members.py \
   --report translated_ip_apply.json
 ```
 
+Replay a source report into a destination NSX environment where the matching groups already exist:
+
+```bash
+python3 nsx_group_translated_ip_members.py \
+  --host nsx-destination.example.local \
+  --username admin \
+  --password 'YOUR_PASSWORD' \
+  --domain default \
+  --source-report translated_ip_apply.json \
+  --apply \
+  --report translated_ip_destination_apply.json
+```
+
+Remove the managed IP address expressions after migration is complete:
+
+```bash
+python3 nsx_group_translated_ip_members.py \
+  --host nsx-manager.example.local \
+  --username admin \
+  --password 'YOUR_PASSWORD' \
+  --domain default \
+  --remove-managed \
+  --apply \
+  --report translated_ip_cleanup.json
+```
+
+To remove only from groups listed in a prior report, combine cleanup with `--source-report`:
+
+```bash
+python3 nsx_group_translated_ip_members.py \
+  --host nsx-manager.example.local \
+  --username admin \
+  --password 'YOUR_PASSWORD' \
+  --domain default \
+  --source-report translated_ip_apply.json \
+  --remove-managed \
+  --apply \
+  --report translated_ip_cleanup_from_report.json
+```
+
 Notes:
 - IPv4 translated members are materialized by default. Add `--include-ipv6` if you also want IPv6.
 - Managed expression IDs default to `translated-ip-members-ipv4` and `translated-ip-members-ipv6`.
 - The script does not remove the existing VM/tag/path membership. It adds hardcoded IP entries alongside it.
+- Report replay and cleanup only touch those managed expression IDs, so existing manually-created IP address expressions are left alone.
 - If your environment requires a specific enforcement point for effective member lookup, pass `--enforcement-point-path /infra/sites/default/enforcement-points/<ep-id>`.
 
 ## Rate Limiting
@@ -181,5 +222,5 @@ In `zsh`, passwords containing `!!` must be quoted or the shell may expand them 
 Example:
 
 ```bash
---password 'VMwar3!!VMwar3!!'
+--password 'passwerd!!'
 ```
